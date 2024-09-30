@@ -109,7 +109,7 @@ def process_paragraph(para):
 def synth(text, model, hp):
     """Decode with E2E-TTS model."""
 
-    print("TTS synthesis")
+    print(f"TTS synthesis for {text}")
 
     model.eval()
     # set torch device

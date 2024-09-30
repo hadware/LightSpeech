@@ -84,8 +84,14 @@ def train(args, hp, hp_str, logger, vocoder):
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
 
-            loss, report_dict = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda(), dur.cuda(), e.cuda(),
-                                      p.cuda())
+            # NOTE: y = mel spectro
+            loss, report_dict = model(x.cuda(),
+                                      input_length.cuda(),
+                                      y.cuda(),
+                                      out_length.cuda(), # output audio length
+                                      dur.cuda(), # phonemes durations
+                                      e.cuda(), # energy
+                                      p.cuda()) # pitch
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
 

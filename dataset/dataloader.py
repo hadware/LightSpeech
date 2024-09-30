@@ -32,10 +32,11 @@ def get_tts_dataset(path, batch_size, hp, valid=False) :
 
 
 class TTSDataset(Dataset):
-    def __init__(self, path, file_, use_phonemes, tts_cleaner_names, eos) :
+    def __init__(self, path, file_, use_phonemes: bool, tts_cleaner_names, eos) :
         self.path = path
         with open('{}'.format(file_), encoding='utf-8') as f:
             self._metadata = [line.strip().split('|') for line in f]
+        # NOTE: use_phonemes set to true when training
         self.use_phonemes = use_phonemes
         self.tts_cleaner_names = tts_cleaner_names
         self.eos = eos
@@ -77,7 +78,8 @@ def pad2d(x, max_len) :
     return np.pad(x, ((0, 0), (0, max_len - x.shape[-1])), mode='constant')
 
 def collate_tts(batch):
-
+    # NOTE: ilens -> length of phonemes
+    # NOTE: olens -> length of mel vector
     ilens = torch.from_numpy(np.array([x[0].shape[0] for x in batch])).long()
     olens = torch.from_numpy(np.array([y[1].shape[0] for y in batch])).long()
     ids = [x[2] for x in batch]

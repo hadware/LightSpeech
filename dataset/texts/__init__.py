@@ -124,30 +124,6 @@ def text_to_phonemes(text, custom_words={}):
     """
     g2p = G2p()
 
-    '''def convert_phoneme_CMU(phoneme):
-        REMAPPING = {
-            'AA0': 'AA1',
-            'AA2': 'AA1',
-            'AE2': 'AE1',
-            'AH2': 'AH1',
-            'AO0': 'AO1',
-            'AO2': 'AO1',
-            'AW2': 'AW1',
-            'AY2': 'AY1',
-            'EH2': 'EH1',
-            'ER0': 'EH1',
-            'ER1': 'EH1',
-            'ER2': 'EH1',
-            'EY2': 'EY1',
-            'IH2': 'IH1',
-            'IY2': 'IY1',
-            'OW2': 'OW1',
-            'OY2': 'OY1',
-            'UH2': 'UH1',
-            'UW2': 'UW1',
-        }
-        return REMAPPING.get(phoneme, phoneme)
-        '''
     def convert_phoneme_listener(phoneme):
         VOWELS = ['A', 'E', 'I', 'O', 'U']
         if phoneme[0] in VOWELS:

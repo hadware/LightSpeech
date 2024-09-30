@@ -1,6 +1,6 @@
-from lightspeech import FeedForwardTransformer
 from utils.hparams import HParam
 from dataset.texts import valid_symbols
+import utils.fastspeech2_script as fs2
 import configargparse
 import torch
 import sys
@@ -35,7 +35,7 @@ def main(cmd_args):
 
     idim = len(valid_symbols)
     odim = hp.audio.num_mels
-    model = FeedForwardTransformer(idim, odim, hp)
+    model = fs2.FeedForwardTransformer(idim, odim, hp)
     my_script_module = torch.jit.script(model)
     print("Scripting")
     my_script_module.save("{}/{}.pt".format(args.outdir, args.name))
