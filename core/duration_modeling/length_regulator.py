@@ -6,11 +6,9 @@
 
 """Length regulator related loss."""
 
-import logging
-
 import torch
 
-from utils.util import pad_2d_tensor, pad_list
+from utils.util import pad_2d_tensor
 
 
 class LengthRegulator(torch.nn.Module):
@@ -57,7 +55,6 @@ class LengthRegulator(torch.nn.Module):
 
         xs = [self._repeat_one_sequence(x, d) for x, d in zip(xs, ds)]
 
-
         return pad_2d_tensor(xs, 0.0)
 
     def _repeat_one_sequence(self, x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
@@ -89,4 +86,3 @@ class LengthRegulator(torch.nn.Module):
                 out.append(x_.repeat(int(d_), 1))
 
         return torch.cat(out, dim=0)
-

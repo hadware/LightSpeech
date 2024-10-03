@@ -1,9 +1,12 @@
+from typing import Tuple, Optional
+
 import torch
 from torch import nn
+
 from core.attention import MultiHeadedAttention
 from core.embedding import PositionalEncoding
 from core.modules import MultiLayeredSepConv1d
-from typing import Tuple, Optional
+
 
 class EncoderLayer(nn.Module):
     """Encoder layer module
@@ -30,7 +33,7 @@ class EncoderLayer(nn.Module):
         self.size = size
         self.normalize_before = normalize_before
         self.concat_after = concat_after
-        #if self.concat_after:
+        # if self.concat_after:
         self.concat_linear = nn.Linear(size + size, size)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None):
@@ -42,7 +45,7 @@ class EncoderLayer(nn.Module):
         """
         residual = x
         if self.normalize_before:
-          x = self.norm1(x)
+            x = self.norm1(x)
         if self.concat_after:
             x_concat = torch.cat((x, self.self_attn(x, x, x, mask)), dim=-1)
             x = residual + self.concat_linear(x_concat)
@@ -53,12 +56,13 @@ class EncoderLayer(nn.Module):
 
         residual = x
         if self.normalize_before:
-          x = self.norm2(x)
+            x = self.norm2(x)
         x = residual + self.dropout(self.feed_forward(x))
         if not self.normalize_before:
             x = self.norm2(x)
 
         return x, mask
+
 
 class Encoder(torch.nn.Module):
     """Transformer encoder module
@@ -84,7 +88,7 @@ class Encoder(torch.nn.Module):
 
     def __init__(self, idim: int,
                  attention_dim: int = 256,
-                 attention_heads: int =2,
+                 attention_heads: int = 2,
                  linear_units: int = 2048,
                  num_blocks: int = 4,
                  dropout_rate: float = 0.1,
@@ -92,10 +96,10 @@ class Encoder(torch.nn.Module):
                  attention_dropout_rate: float = 0.0,
                  input_layer: str = None,
                  pos_enc_class: torch.nn.Module = PositionalEncoding,
-                 normalize_before: bool =True,
-                 concat_after: bool =False,
+                 normalize_before: bool = True,
+                 concat_after: bool = False,
                  positionwise_conv_kernel_sizes: list = [5, 25, 13, 9],
-                 padding_idx: int =-1):
+                 padding_idx: int = -1):
 
         super(Encoder, self).__init__()
         # if self.normalize_before:
@@ -134,9 +138,6 @@ class Encoder(torch.nn.Module):
                 concat_after
             ) for i in range(num_blocks)])
 
-
-
-
     def forward(self, xs: torch.Tensor, masks: Optional[torch.Tensor] = None):
         """Embed positions in tensor
 
@@ -150,7 +151,7 @@ class Encoder(torch.nn.Module):
         # else:
         xs = self.embed(xs)
 
-        #xs, masks = self.encoders_(xs, masks)
+        # xs, masks = self.encoders_(xs, masks)
         for encoder in self.encoders_:
             xs, masks = encoder(xs, masks)
         if self.normalize_before:

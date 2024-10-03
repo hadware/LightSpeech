@@ -33,7 +33,7 @@ class PositionalEncoding(torch.nn.Module):
         self.d_model = d_model
         self.xscale = math.sqrt(self.d_model)
         self.dropout = torch.nn.Dropout(p=dropout_rate)
-        #self.pe = None
+        # self.pe = None
         self.register_buffer("pe", None)
         self.extend_pe(torch.tensor(0.0).expand(1, max_len))
         # self._register_load_state_dict_pre_hook(_pre_hook)
@@ -42,7 +42,7 @@ class PositionalEncoding(torch.nn.Module):
         """Reset the positional encodings."""
         if self.pe is not None:
             if self.pe.size(1) >= x.size(1):
-                if self.pe.dtype != x.dtype:# or self.pe.device != x.device:    comment because of torchscript
+                if self.pe.dtype != x.dtype:  # or self.pe.device != x.device:    comment because of torchscript
                     self.pe = self.pe.to(dtype=x.dtype, device=x.device)
                 return
         pe = torch.zeros(x.size(1), self.d_model)

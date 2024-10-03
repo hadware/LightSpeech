@@ -6,10 +6,13 @@
 
 """Duration predictor related loss."""
 
-import torch
 from typing import Optional
+
+import torch
+
 from core.modules import LayerNorm
 from core.modules import SepConv1d
+
 
 class DurationPredictor(torch.nn.Module):
     """Duration predictor module.
@@ -26,7 +29,7 @@ class DurationPredictor(torch.nn.Module):
 
     """
 
-    def __init__(self, idim, n_layers=2, n_chans=256, kernel_size=3, dropout_rate=0.1, offset=1.0):
+    def __init__(self, idim: int, n_layers=2, n_chans=256, kernel_size=3, dropout_rate=0.1, offset=1.0):
         """Initilize duration predictor module.
 
         Args:
@@ -51,7 +54,7 @@ class DurationPredictor(torch.nn.Module):
             )]
         self.linear = torch.nn.Linear(n_chans, 1)
 
-    def _forward(self, xs: torch.Tensor, x_masks: Optional[torch.Tensor] = None, is_inference: bool=False):
+    def _forward(self, xs: torch.Tensor, x_masks: Optional[torch.Tensor] = None, is_inference: bool = False):
         xs = xs.transpose(1, -1)  # (B, idim, Tmax)
         for f in self.conv:
             xs = f(xs)  # (B, C, Tmax)

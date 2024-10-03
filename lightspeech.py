@@ -168,6 +168,9 @@ class FeedForwardTransformer(torch.nn.Module):
                  ds: torch.Tensor = None,
                  es: torch.Tensor = None,
                  ps: torch.Tensor = None,
+                 d_factor: float = 1.0,
+                 e_factor: float = 1.0,
+                 p_factor: float = 1.0,
                  is_inference: bool = False) -> Sequence[torch.Tensor]:
         # forward encoder
         x_masks = self._source_mask(ilens)  # (B, Tmax, Tmax) -> torch.Size([32, 121, 121])
@@ -192,13 +195,13 @@ class FeedForwardTransformer(torch.nn.Module):
                 # print("one_hot_pitch:", one_hot_pitch.shape)
             mel_masks = make_pad_mask(olens).to(xs.device)
             # print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
-            d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
+            d_outs = self.duration_predictor(hs, d_masks) * d_factor  # (B, Tmax)
             # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
             # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
-            e_outs = self.energy_predictor(hs, mel_masks)
+            e_outs = self.energy_predictor(hs, mel_masks) * e_factor
             # print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
-            p_outs = self.pitch_predictor(hs, mel_masks)
+            p_outs = self.pitch_predictor(hs, mel_masks) * p_factor
             # print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
         hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
         hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
@@ -293,7 +296,10 @@ class FeedForwardTransformer(torch.nn.Module):
 
         return loss, report_keys
 
-    def inference(self, x: torch.Tensor) -> torch.Tensor:
+    def inference(self, x: torch.Tensor,
+                  d_factor: float = 1.0,
+                  e_factor: float = 1.0,
+                  p_factor: float = 1.0, ) -> torch.Tensor:
         """Generate the sequence of features given the sequences of characters.
         Args:
             x (Tensor): Input sequence of characters (T,).

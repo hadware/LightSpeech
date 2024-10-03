@@ -1,7 +1,8 @@
-import torch
 from typing import Tuple
-from core.embedding import PositionalEncoding
 
+import torch
+
+from core.embedding import PositionalEncoding
 
 
 class SepConv1d(torch.nn.Module):
@@ -11,7 +12,7 @@ class SepConv1d(torch.nn.Module):
                  kernel_size,
                  stride=1,
                  padding=0,
-                 dilation=1,):
+                 dilation=1, ):
         super(SepConv1d, self).__init__()
         self.depthwise = torch.nn.Conv1d(in_channels,
                                          in_channels,
@@ -27,6 +28,7 @@ class SepConv1d(torch.nn.Module):
         x = self.pointwise(x)
         return x
 
+
 class Conv(torch.nn.Module):
     """
     Convolution Module
@@ -39,7 +41,7 @@ class Conv(torch.nn.Module):
                  stride=1,
                  padding=0,
                  dilation=1,
-                 bias=True,):
+                 bias=True, ):
         """
         :param in_channels: dimension of input
         :param out_channels: dimension of output
@@ -53,12 +55,12 @@ class Conv(torch.nn.Module):
         super(Conv, self).__init__()
 
         self.conv = torch.nn.Conv1d(in_channels,
-                              out_channels,
-                              kernel_size=kernel_size,
-                              stride=stride,
-                              padding=padding,
-                              dilation=dilation,
-                              bias=bias)
+                                    out_channels,
+                                    kernel_size=kernel_size,
+                                    stride=stride,
+                                    padding=padding,
+                                    dilation=dilation,
+                                    bias=bias)
 
     def forward(self, x):
         x = x.contiguous().transpose(1, 2)
@@ -139,6 +141,7 @@ class LayerNorm(torch.nn.Module):
         x = self.layer_norm(x.transpose(1, -1))
         x = x.transpose(1, -1)
         return x
+
 
 # class LayerNorm(torch.nn.LayerNorm):
 #     """Layer normalization module
@@ -236,7 +239,7 @@ class MultiLayeredConv1d(torch.nn.Module):
 
     """
 
-    def __init__(self, in_chans: int, hidden_chans: int, kernel_size:int, dropout_rate: float):
+    def __init__(self, in_chans: int, hidden_chans: int, kernel_size: int, dropout_rate: float):
         super(MultiLayeredConv1d, self).__init__()
         self.w_1 = torch.nn.Conv1d(in_chans, hidden_chans, kernel_size,
                                    stride=1, padding=(kernel_size - 1) // 2)
@@ -275,12 +278,12 @@ class MultiLayeredSepConv1d(torch.nn.Module):
 
     """
 
-    def __init__(self, in_chans: int, hidden_chans: int, kernel_size:int, dropout_rate: float):
+    def __init__(self, in_chans: int, hidden_chans: int, kernel_size: int, dropout_rate: float):
         super(MultiLayeredSepConv1d, self).__init__()
         self.w_1 = SepConv1d(in_chans, hidden_chans, kernel_size,
-                                   stride=1, padding=(kernel_size - 1) // 2)
+                             stride=1, padding=(kernel_size - 1) // 2)
         self.w_2 = SepConv1d(hidden_chans, in_chans, 1,
-                                   stride=1, padding=(1 - 1) // 2)
+                             stride=1, padding=(1 - 1) // 2)
         self.dropout = torch.nn.Dropout(dropout_rate)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -297,7 +300,6 @@ class MultiLayeredSepConv1d(torch.nn.Module):
         return self.w_2(self.dropout(x).transpose(-1, 1)).transpose(-1, 1)
 
 
-
 class Postnet(torch.nn.Module):
     """Postnet module for Spectrogram prediction network.
     This is a module of Postnet in Spectrogram prediction network,
@@ -311,14 +313,14 @@ class Postnet(torch.nn.Module):
     """
 
     def __init__(
-        self,
-        idim: int,
-        odim: int,
-        n_layers: int=5,
-        n_chans: int=512,
-        n_filts: int=5,
-        dropout_rate: float=0.5,
-        use_batch_norm: bool=True,
+            self,
+            idim: int,
+            odim: int,
+            n_layers: int = 5,
+            n_chans: int = 512,
+            n_filts: int = 5,
+            dropout_rate: float = 0.5,
+            use_batch_norm: bool = True,
     ):
         """Initialize postnet module.
         Args:
