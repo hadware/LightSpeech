@@ -1,52 +1,63 @@
+from lightspeech import FeedForwardTransformer
 from utils.hparams import HParam
 from dataset.texts import valid_symbols
-import utils.fastspeech2_script as fs2
 import configargparse
 import torch
 import sys
 
+DEFAULT_OPSET = 16
+DEFAULT_SEED = 4577
 
-def get_parser():
+parser = configargparse.ArgumentParser(
+    description='Train a new text-to-speech (TTS) model on one CPU, one or multiple GPUs',
+    config_file_parser_class=configargparse.YAMLConfigFileParser,
+    formatter_class=configargparse.ArgumentDefaultsHelpFormatter)
 
-    parser = configargparse.ArgumentParser(
-        description='Train a new text-to-speech (TTS) model on one CPU, one or multiple GPUs',
-        config_file_parser_class=configargparse.YAMLConfigFileParser,
-        formatter_class=configargparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-c', '--config', type=str, required=True,
+                    help="yaml file for configuration")
+parser.add_argument('-n', '--name', type=str, required=True,
+                    help="name of the model for logging, saving checkpoint")
+parser.add_argument('--outdir', type=str, required=True,
+                    help='Output directory')
+parser.add_argument("--opset", type=int, default=DEFAULT_OPSET, help="ONNX opset version to use (default 15")
+parser.add_argument("--seed", type=int, default=DEFAULT_SEED, help="Random seed")
+parser.add_argument('-t', '--trace', action='store_true', help="For JIT Trace Module")
 
-    parser.add_argument('-c', '--config', type=str, required=True,
-                        help="yaml file for configuration")
-    parser.add_argument('-n', '--name', type=str, required=True,
-                        help="name of the model for logging, saving checkpoint")
-    parser.add_argument('--outdir', type=str, required=True,
-                        help='Output directory')
-    parser.add_argument('-t', '--trace', action='store_true', help="For JIT Trace Module")
-
-    return parser
 
 
 def main(cmd_args):
-
-    parser = get_parser()
-    args, _ = parser.parse_known_args(cmd_args)
 
     args = parser.parse_args(cmd_args)
 
     hp = HParam(args.config)
 
+    dummy_input = {
+        "x": torch.randint(0, len(valid_symbols), size=(50,)),
+    }
+
+    input_names = list(dummy_input.keys())
+    output_names = ["wav"]
+
+    dynamic_axes = {
+        "x": {0: "time"},
+        "wav": {0: "frames"},
+    }
+
     idim = len(valid_symbols)
     odim = hp.audio.num_mels
-    model = fs2.FeedForwardTransformer(idim, odim, hp)
-    my_script_module = torch.jit.script(model)
-    print("Scripting")
-    my_script_module.save("{}/{}.pt".format(args.outdir, args.name))
-    print("Script done")
-    if args.trace:
-        print("Tracing")
-        model.eval()
-        with torch.no_grad():
-            my_trace_module = torch.jit.trace(model, torch.ones(50).to(dtype=torch.int64))
-        my_trace_module.save("{}/trace_{}.pt".format(args.outdir, args.name))
-        print("Trace Done")
+    model = FeedForwardTransformer(idim, odim, hp)
+    model.forward = model.inference
+    torch.onnx.export(
+        model,
+        f="lightspeech.onnx",
+        args=tuple(dummy_input.values()),
+        input_names=input_names,
+        output_names=output_names,
+        dynamic_axes=dynamic_axes,
+        opset_version=args.opset,
+        # export_params=True,
+        do_constant_folding=True,
+    )
 
 
 if __name__ == "__main__":

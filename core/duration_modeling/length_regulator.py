@@ -33,14 +33,18 @@ class LengthRegulator(torch.nn.Module):
         super(LengthRegulator, self).__init__()
         self.pad_value = pad_value
 
-    def forward(self, xs: torch.Tensor, ds: torch.Tensor, ilens: torch.Tensor, alpha: float = 1.0) \
+    def forward(self,
+                pho_embd_batch: torch.Tensor,
+                durations_batch: torch.Tensor,
+                pho_len_batch: torch.Tensor,
+                alpha: float = 1.0) \
             -> torch.Tensor:
         """Calculate forward propagation.
 
         Args:
-            xs (Tensor): Batch of sequences of char or phoneme embeddings (B, Tmax, D).
-            ds (LongTensor): Batch of durations of each frame (B, T).
-            ilens (LongTensor): Batch of input lengths (B,).
+            pho_embd_batch (Tensor): Batch of sequences of char or phoneme embeddings (B, Tmax, D).
+            durations_batch (LongTensor): Batch of durations of each frame (B, T).
+            pho_len_batch (LongTensor): Batch of input lengths (B,).
             alpha (float, optional): Alpha value to control speed of speech.
 
         Returns:
@@ -49,13 +53,13 @@ class LengthRegulator(torch.nn.Module):
         """
         assert alpha > 0
         if alpha != 1.0:
-            ds = torch.round(ds.float() * alpha).long()
-        xs = [x[:ilen] for x, ilen in zip(xs, ilens)]
-        ds = [d[:ilen] for d, ilen in zip(ds, ilens)]
+            durations_batch = torch.round(durations_batch.float() * alpha).long()
+        pho_embd_batch = [x[:ilen] for x, ilen in zip(pho_embd_batch, pho_len_batch)]
+        durations_batch = [d[:ilen] for d, ilen in zip(durations_batch, pho_len_batch)]
 
-        xs = [self._repeat_one_sequence(x, d) for x, d in zip(xs, ds)]
+        pho_embd_batch = [self._repeat_one_sequence(x, d) for x, d in zip(pho_embd_batch, durations_batch)]
 
-        return pad_2d_tensor(xs, 0.0)
+        return pad_2d_tensor(pho_embd_batch, 0.0)
 
     def _repeat_one_sequence(self, x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
         """Repeat each frame according to duration.

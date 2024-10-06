@@ -29,7 +29,7 @@ class PositionalEncoding(torch.nn.Module):
         :param int max_len: maximum input length
 
         """
-        super(PositionalEncoding, self).__init__()
+        super().__init__()
         self.d_model = d_model
         self.xscale = math.sqrt(self.d_model)
         self.dropout = torch.nn.Dropout(p=dropout_rate)
@@ -41,6 +41,7 @@ class PositionalEncoding(torch.nn.Module):
     def extend_pe(self, x: torch.Tensor):
         """Reset the positional encodings."""
         if self.pe is not None:
+            # TODO: investigate when this is triggered
             if self.pe.size(1) >= x.size(1):
                 if self.pe.dtype != x.dtype:  # or self.pe.device != x.device:    comment because of torchscript
                     self.pe = self.pe.to(dtype=x.dtype, device=x.device)

@@ -197,6 +197,8 @@ class FeedForwardTransformer(torch.nn.Module):
             # print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
             d_outs = self.duration_predictor(hs, d_masks) * d_factor  # (B, Tmax)
             # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
+            # TODO: replace by gaussian upsampling from optispeech
+            #  needs precomputing of x_mask and mel_mask from ilens and olens
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
             # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
             e_outs = self.energy_predictor(hs, mel_masks) * e_factor

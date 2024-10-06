@@ -2,20 +2,22 @@
 
 """Network related utility tools."""
 
+import argparse
+import glob
+import json
+import logging
+import os
+import subprocess
+from typing import List
+
+import librosa
 import numpy as np
 import torch
-import argparse
-import json
-import os 
-import logging
-import subprocess
-from scipy.io.wavfile import read
-import librosa
-import glob
-from typing import List
 import torch.nn.functional as F
+from scipy.io.wavfile import read
 
-def get_files(path, extension='.wav') :
+
+def get_files(path, extension='.wav'):
     filenames = []
     for filename in glob.iglob(f'{path}/**/*{extension}', recursive=True):
         filenames += [filename]
@@ -51,6 +53,7 @@ def remove_outlier(x):
 def str_to_int_list(s):
     return list(map(int, s.split()))
 
+
 def to_device(m, x):
     """Send tensor into the device of the module.
 
@@ -69,24 +72,21 @@ def to_device(m, x):
 
 @torch.jit.script
 def pad_1d_tensor(xs: List[torch.Tensor]):
+    length = torch.jit.annotate(List[int], [])
 
-  length = torch.jit.annotate(List[int], [])
+    for x in xs:
+        length.append(x.size(0))
 
-  for x in xs:
+    max_len = max(length)
+    x_padded = []
 
-    length.append(x.size(0))
+    for x in xs:
+        x_padded.append(F.pad(x, (0, max_len - x.shape[0])))
+    padded = torch.stack(x_padded)
 
-  max_len = max(length)
-  x_padded = []
-
-  for x in xs:
-    x_padded.append(F.pad(x, (0, max_len - x.shape[0])))
-  padded = torch.stack(x_padded)
-
-  return padded
+    return padded
 
 
-@torch.jit.script
 def pad_2d_tensor(xs: List[torch.Tensor], pad_value: float = 0.0):
     max_len = max([xs[i].size(0)for i in range(len(xs))])
 
@@ -94,7 +94,7 @@ def pad_2d_tensor(xs: List[torch.Tensor], pad_value: float = 0.0):
 
     for i, batch in enumerate(xs):
         one_batch_padded = F.pad(
-                batch, (0, 0, 0, max_len - batch.size(0)), "constant", pad_value)
+            batch, (0, 0, 0, max_len - batch.size(0)), "constant", pad_value)
         out_list.append(one_batch_padded)
 
     out_padded = torch.stack(out_list)
@@ -130,6 +130,7 @@ def pad_list(xs, pad_value):
 
     return pad
 
+
 def subsequent_mask(size, device="cuda", dtype=torch.uint8):
     """Create mask for subsequent steps (1, size, size)
 
@@ -145,6 +146,7 @@ def subsequent_mask(size, device="cuda", dtype=torch.uint8):
     ret = torch.ones(size, size, device=device, dtype=dtype)
     return torch.tril(ret, out=ret)
 
+
 @torch.jit.script
 def tensor_1d_tolist(x):
     result: List[int] = []
@@ -155,7 +157,6 @@ def tensor_1d_tolist(x):
 
 @torch.jit.script
 def make_pad_mask_script(lengths: torch.Tensor):
-
     if not isinstance(lengths, list):
         lengths = tensor_1d_tolist(lengths)
 
@@ -170,7 +171,8 @@ def make_pad_mask_script(lengths: torch.Tensor):
     return mask
 
 
-def make_pad_mask(lengths: List[int], xs: torch.Tensor=None, length_dim: int=-1):
+def make_pad_mask(lengths: List[int], xs: torch.Tensor = None, length_dim: int = -1):
+    # TODO: reimplement function using only tensors
     """Make mask tensor containing indices of padded part.
 
     Args:
@@ -522,9 +524,10 @@ def torch_load(path, model):
         model.load_state_dict(model_state_dict)
 
     del model_state_dict
-    
-    
+
     # * -------------------- general -------------------- *
+
+
 def get_model_conf(model_path, conf_path=None):
     """Get model config information by reading a model config file (model.json).
 
@@ -556,6 +559,7 @@ def get_model_conf(model_path, conf_path=None):
 def get_commit_hash():
     message = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
     return message.strip().decode('utf-8')
+
 
 def read_wav_np(path, sample_rate):
     sr, wav = read(path)
