@@ -1,0 +1,20 @@
+defaults:
+  - _self_
+  - alphabet: cmu_en
+
+data_dir: 'datasets/ljspeech/data/'
+wav_dir: 'datasets/ljspeech/audio/'
+train_filelist: "datasets/ljspeech/train_filelist.txt"
+valid_filelist: "datasets/ljspeech/valid_filelist.txt"
+tts_cleaner_names: ['english_cleaners']
+
+# Compute statistics
+e_mean: 21.578571319580078
+e_std: 18.916799545288086
+e_min: 0.01786651276051998
+e_max: 130.5338592529297
+
+f0_mean: 206.5135564772342
+f0_std:  53.633228905750336
+p_min: 71.0
+p_max: 676.2260946528305 # 799.8901977539062

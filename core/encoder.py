@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Type
 
 import torch
 from torch import nn
@@ -95,7 +95,7 @@ class Encoder(torch.nn.Module):
                  positional_dropout_rate: float = 0.1,
                  attention_dropout_rate: float = 0.0,
                  input_layer: str = None,
-                 pos_enc_class: torch.nn.Module = PositionalEncoding,
+                 pos_enc_class: Type[torch.nn.Module] = PositionalEncoding,
                  normalize_before: bool = True,
                  concat_after: bool = False,
                  positionwise_conv_kernel_sizes: list = [5, 25, 13, 9],
@@ -117,17 +117,6 @@ class Encoder(torch.nn.Module):
             raise ValueError("unknown input_layer: " + input_layer)
         self.normalize_before = normalize_before
 
-        # self.encoders = repeat(
-        #     4,
-        #     lambda: EncoderLayer(
-        #         attention_dim,
-        #         MultiHeadedAttention(attention_heads, attention_dim, attention_dropout_rate),
-        #         positionwise_layer(*positionwise_layer_args),
-        #         dropout_rate,
-        #         normalize_before,
-        #         concat_after
-        #     )
-        # )
         self.encoders_ = nn.ModuleList([
             EncoderLayer(
                 attention_dim,
