@@ -6,23 +6,23 @@
 
 """FastSpeech related loss."""
 
-import logging
+from typing import Dict, Tuple, Sequence
 
 import torch
+
+from core.alignments import GaussianUpsampling
 from core.duration_modeling.duration_predictor import DurationPredictor
 from core.duration_modeling.duration_predictor import DurationPredictorLoss
-from core.variance_predictor import EnergyPredictor, EnergyPredictorLoss
-from core.variance_predictor import PitchPredictor, PitchPredictorLoss
 from core.duration_modeling.length_regulator import LengthRegulator
-from utils.util import make_non_pad_mask
-from utils.util import make_pad_mask
-from core.embedding import PositionalEncoding
+from core.embedding import PositionalEncoding, ScaledSinusoidalEmbedding
 from core.embedding import ScaledPositionalEncoding
 from core.encoder import Encoder
-from core.modules import initialize
 from core.modules import Postnet
-from typeguard import check_argument_types
-from typing import Dict, Tuple, Sequence
+from core.modules import initialize
+from core.variance_predictor import EnergyPredictor, EnergyPredictorLoss
+from core.variance_predictor import PitchPredictor, PitchPredictorLoss
+from utils.util import make_non_pad_mask, sequence_mask
+from utils.util import make_pad_mask
 
 
 class FeedForwardTransformer(torch.nn.Module):
@@ -57,7 +57,7 @@ class FeedForwardTransformer(torch.nn.Module):
         padding_idx = 0
 
         # get positional encoding class
-        pos_enc_class = ScaledPositionalEncoding if self.use_scaled_pos_enc else PositionalEncoding
+        pos_enc_class = ScaledSinusoidalEmbedding if self.use_scaled_pos_enc else PositionalEncoding
 
         # define encoder
         encoder_input_layer = torch.nn.Embedding(
@@ -113,6 +113,8 @@ class FeedForwardTransformer(torch.nn.Module):
 
         # define length regulator
         self.length_regulator = LengthRegulator()
+
+        self.gaussian_upsampler = GaussianUpsampling()
 
         # define decoder
         # NOTE: we use encoder as decoder because fastspeech's decoder is the same as encoder
@@ -178,33 +180,42 @@ class FeedForwardTransformer(torch.nn.Module):
         hs, _ = self.encoder(xs, x_masks)  # (B, Tmax, adim) -> torch.Size([32, 121, 256])
         # print("ys :", ys.shape)
 
+        x_max_length = ilens.max()
+        x_mask = torch.unsqueeze(sequence_mask(ilens, x_max_length), 1).type_as(xs)
+
         # forward duration predictor and length regulator
         d_masks = make_pad_mask(ilens).to(xs.device)
 
         if is_inference:
-            d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
-            hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
+            d_outs = self.duration_predictor.inference(hs, d_masks)
+            # hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
+
+            y_lengths = d_outs.sum(dim=1)
+            y_max_length = y_lengths.max()
+            y_mask = torch.unsqueeze(sequence_mask(y_lengths, y_max_length), 1).type_as(xs)
+
+            hs = self.gaussian_upsampler(
+                hs=hs, ds=d_outs, h_masks=y_mask.squeeze(1).bool(), d_masks=x_mask.squeeze(1).bool()
+            )
+
             one_hot_energy = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
             one_hot_pitch = self.pitch_predictor.inference(hs)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
-                # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
                 one_hot_energy = self.energy_predictor.to_one_hot(es)  # (B, Lmax, adim)   torch.Size([32, 868, 256])
-                # print("one_hot_energy:", one_hot_energy.shape)
                 one_hot_pitch = self.pitch_predictor.to_one_hot(ps)  # (B, Lmax, adim)   torch.Size([32, 868, 256])
-                # print("one_hot_pitch:", one_hot_pitch.shape)
+
             mel_masks = make_pad_mask(olens).to(xs.device)
-            # print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
             d_outs = self.duration_predictor(hs, d_masks) * d_factor  # (B, Tmax)
-            # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
-            # TODO: replace by gaussian upsampling from optispeech
-            #  needs precomputing of x_mask and mel_mask from ilens and olens
-            hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
-            # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
+            # hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
+            mel_max_length = olens.max()
+            mel_mask = torch.unsqueeze(sequence_mask(olens, mel_max_length), 1).type_as(xs)
+
+            hs = self.gaussian_upsampler(
+                hs=hs, ds=ds, h_masks=mel_mask.squeeze(1).bool(), d_masks=x_mask.squeeze(1).bool()
+            )
             e_outs = self.energy_predictor(hs, mel_masks) * e_factor
-            # print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
             p_outs = self.pitch_predictor(hs, mel_masks) * p_factor
-            # print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
         hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
         hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
         # forward decoder
@@ -344,7 +355,8 @@ class FeedForwardTransformer(torch.nn.Module):
         # initialize parameters
         initialize(self, init_type)
 
+        # NOTE: commented out. Optispeech's default value for "scale" (not alpha) seems to be good enough
         # initialize alpha in scaled positional encoding
-        if self.use_scaled_pos_enc:
-            self.encoder.embed[-1].alpha.data = torch.tensor(init_enc_alpha)
-            self.decoder.embed[-1].alpha.data = torch.tensor(init_dec_alpha)
+        # if self.use_scaled_pos_enc:
+        #     self.encoder.embed[-1].alpha.data = torch.tensor(init_enc_alpha)
+        #     self.decoder.embed[-1].alpha.data = torch.tensor(init_dec_alpha)

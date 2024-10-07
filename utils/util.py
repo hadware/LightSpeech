@@ -100,6 +100,13 @@ def pad_2d_tensor(xs: List[torch.Tensor], pad_value: float = 0.0):
     out_padded = torch.stack(out_list)
     return out_padded
 
+def sequence_mask(length, max_length=None):
+    if max_length is None:
+        max_length = length.max()
+    x = torch.arange(max_length, dtype=length.dtype, device=length.device)
+    return x.unsqueeze(0) < length.unsqueeze(1)
+
+
 
 def pad_list(xs, pad_value):
     """Perform padding for the list of tensors.
@@ -285,6 +292,7 @@ def make_pad_mask(lengths: List[int], xs: torch.Tensor = None, length_dim: int =
 @torch.jit.script
 def make_non_pad_mask_script(lengths: torch.Tensor):
     return ~make_pad_mask_script(lengths)
+
 
 
 def make_non_pad_mask(lengths, xs=None, length_dim=-1):

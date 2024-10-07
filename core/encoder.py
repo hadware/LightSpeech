@@ -4,7 +4,7 @@ import torch
 from torch import nn
 
 from core.attention import MultiHeadedAttention
-from core.embedding import PositionalEncoding
+from core.embedding import PositionalEncoding, ScaledSinusoidalEmbedding
 from core.modules import MultiLayeredSepConv1d
 
 
@@ -101,7 +101,7 @@ class Encoder(torch.nn.Module):
                  positionwise_conv_kernel_sizes: list = [5, 25, 13, 9],
                  padding_idx: int = -1):
 
-        super(Encoder, self).__init__()
+        super().__init__()
         # if self.normalize_before:
         self.after_norm = torch.nn.LayerNorm(attention_dim)
         if isinstance(input_layer, torch.nn.Module):

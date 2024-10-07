@@ -2,6 +2,7 @@
 import math
 
 import torch
+from torch import nn, einsum
 
 
 def _pre_hook(state_dict, prefix, local_metadata, strict,
@@ -67,6 +68,34 @@ class PositionalEncoding(torch.nn.Module):
         """
         self.extend_pe(x)
         x = x * self.xscale + self.pe[:, :x.size(1)]
+        return self.dropout(x)
+
+
+class ScaledSinusoidalEmbedding(nn.Module):
+    def __init__(self, dim_model, dropout_rate: float, theta=10000):
+        super().__init__()
+        assert (dim_model % 2) == 0
+        self.scale = nn.Parameter(torch.ones(1) * dim_model ** -0.5).float()
+        self.dropout = torch.nn.Dropout(p=dropout_rate)
+
+        half_dim = dim_model // 2
+        freq_seq = torch.arange(half_dim).float() / half_dim
+        inv_freq = theta ** -freq_seq.float()
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
+
+    def forward(self, x: torch.Tensor, pos=None, seq_start_pos=None):
+        seq_len = x.size(1)
+        device = x.device
+
+        if pos is None:
+            pos = torch.arange(seq_len, device=device)
+
+        if seq_start_pos is not None:
+            pos = pos - seq_start_pos[..., None]
+
+        emb = einsum("i, j -> i j", pos.float(), self.inv_freq)
+        emb = torch.cat((emb.sin(), emb.cos()), dim=-1)
+        x = x + emb * self.scale
         return self.dropout(x)
 
 

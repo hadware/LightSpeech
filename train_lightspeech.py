@@ -77,7 +77,7 @@ def train(args, hp, hp_str, logger, vocoder):
         running_loss = 0
         j = 0
 
-        pbar = tqdm.tqdm(dataloader, desc='Loading train data')
+        pbar = tqdm.tqdm(dataloader, desc='Starting training...')
         for data in pbar:
             global_step += 1
             x, input_length, y, _, out_length, _, dur, e, p = data
