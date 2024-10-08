@@ -1,0 +1,22 @@
+defaults:
+  - _self_
+  - text_embedding: default
+  - encoder: transformer
+  - duration_predictor: default
+  - pitch_predictor: default
+  - energy_predictor: default
+  - decoder: transformer
+
+_target_: lightspeech.optispeech.OptiSpeechGenerator
+__partial__: true
+dim: 256
+n_feats: 80     # number of mel basis
+n_fft: 1024    # number of fft points
+hop_length: 256   # number of shift points
+sample_rate: 22050 # window length
+loss_coeffs:
+  # lambda_align: 5.0
+  lambda_mel: 1
+  lambda_duration: 1.0
+  lambda_pitch: 1.0
+  lambda_energy: 1.0

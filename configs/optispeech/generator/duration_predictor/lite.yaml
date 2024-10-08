@@ -1,0 +1,10 @@
+defaults:
+  - default
+  - _self_
+
+intermediate_dim: 320
+num_layers: 3
+kernel_size: 3
+conv_layer_class:
+  _target_: lightspeech.optispeech.modules.ConvSeparable
+  _partial_: true

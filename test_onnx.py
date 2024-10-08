@@ -4,9 +4,6 @@ import onnxruntime
 
 import numpy as np
 
-from dataset.texts import valid_symbols
-from utils.util import pad_2d_tensor
-
 ONNX_CPU_PROVIDERS = [
     "CPUExecutionProvider",
 ]

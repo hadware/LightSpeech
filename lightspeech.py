@@ -10,19 +10,18 @@ from typing import Dict, Tuple, Sequence
 
 import torch
 
-from core.alignments import GaussianUpsampling
-from core.duration_modeling.duration_predictor import DurationPredictor
-from core.duration_modeling.duration_predictor import DurationPredictorLoss
-from core.duration_modeling.length_regulator import LengthRegulator
-from core.embedding import PositionalEncoding, ScaledSinusoidalEmbedding
-from core.embedding import ScaledPositionalEncoding
-from core.encoder import Encoder
-from core.modules import Postnet
-from core.modules import initialize
-from core.variance_predictor import EnergyPredictor, EnergyPredictorLoss
-from core.variance_predictor import PitchPredictor, PitchPredictorLoss
-from utils.util import make_non_pad_mask, sequence_mask
-from utils.util import make_pad_mask
+from lightspeech.core.alignments import GaussianUpsampling
+from lightspeech.core.duration_modeling import DurationPredictor
+from lightspeech.core.duration_modeling import DurationPredictorLoss
+from lightspeech.core.duration_modeling import LengthRegulator
+from lightspeech.core.embedding import PositionalEncoding, ScaledSinusoidalEmbedding
+from lightspeech.core.encoder import Encoder
+from lightspeech.core import Postnet
+from lightspeech.core import initialize
+from lightspeech.core.variance_predictor import EnergyPredictor, EnergyPredictorLoss
+from lightspeech.core.variance_predictor import PitchPredictor, PitchPredictorLoss
+from lightspeech.utils.util import make_non_pad_mask, sequence_mask
+from lightspeech.utils.util import make_pad_mask
 
 
 class FeedForwardTransformer(torch.nn.Module):
@@ -170,9 +169,6 @@ class FeedForwardTransformer(torch.nn.Module):
                  ds: torch.Tensor = None,
                  es: torch.Tensor = None,
                  ps: torch.Tensor = None,
-                 d_factor: float = 1.0,
-                 e_factor: float = 1.0,
-                 p_factor: float = 1.0,
                  is_inference: bool = False) -> Sequence[torch.Tensor]:
         # forward encoder
         x_masks = self._source_mask(ilens)  # (B, Tmax, Tmax) -> torch.Size([32, 121, 121])
@@ -206,7 +202,7 @@ class FeedForwardTransformer(torch.nn.Module):
                 one_hot_pitch = self.pitch_predictor.to_one_hot(ps)  # (B, Lmax, adim)   torch.Size([32, 868, 256])
 
             mel_masks = make_pad_mask(olens).to(xs.device)
-            d_outs = self.duration_predictor(hs, d_masks) * d_factor  # (B, Tmax)
+            d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
             # hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
             mel_max_length = olens.max()
             mel_mask = torch.unsqueeze(sequence_mask(olens, mel_max_length), 1).type_as(xs)
@@ -214,8 +210,8 @@ class FeedForwardTransformer(torch.nn.Module):
             hs = self.gaussian_upsampler(
                 hs=hs, ds=ds, h_masks=mel_mask.squeeze(1).bool(), d_masks=x_mask.squeeze(1).bool()
             )
-            e_outs = self.energy_predictor(hs, mel_masks) * e_factor
-            p_outs = self.pitch_predictor(hs, mel_masks) * p_factor
+            e_outs = self.energy_predictor(hs, mel_masks)
+            p_outs = self.pitch_predictor(hs, mel_masks)
         hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
         hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
         # forward decoder

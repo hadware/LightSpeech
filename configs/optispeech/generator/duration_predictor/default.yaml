@@ -1,0 +1,9 @@
+_target_: lightspeech.optispeech.modules.DurationPredictor
+_partial_: true
+num_layers: 2
+intermediate_dim: 384
+kernel_size: 3
+dropout: 0.1
+conv_layer_class:
+  _target_: torch.nn.Conv1d
+  _partial_: true

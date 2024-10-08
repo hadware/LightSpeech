@@ -2,80 +2,7 @@ defaults:
   # feature extraction related
   - feature_extraction: default
   - dataset: ljspeech
-  - model: lightspeech
-
-
-# network architecture related
-model:
-  embed_dim: 0
-  eprenet_conv_layers: 0  # one more linear layer w/o non_linear will be added for 0_centor
-  eprenet_conv_filts: 0
-  eprenet_conv_chans: 0
-  dprenet_layers: 2  # one more linear layer w/o non_linear will be added for 0_centor
-  dprenet_units: 256 # 384
-  adim: 256
-  aheads: 2
-  elayers: 4
-  eunits: 1024
-  dlayers: 4
-  dunits: 1024
-  positionwise_layer_type : "conv1d" # linear
-  encoder_positionwise_conv_kernel_size : [5, 25, 13, 9] # 1
-  decoder_positionwise_conv_kernel_size : [17, 21, 9, 13]
-  postnet_layers: 0
-  postnet_filts: 5
-  postnet_chans: 256
-  use_masking: True
-  use_weighted_masking: False
-  bce_pos_weight: 5.0
-  use_batch_norm: True
-  use_scaled_pos_enc: True
-  encoder_normalize_before: False
-  decoder_normalize_before: False
-  encoder_concat_after: False
-  decoder_concat_after: False
-  reduction_factor: 1
-  loss_type : "L1"
-  # minibatch related
-  batch_sort_key: input # shuffle or input or output
-  batch_bins: 2549760    # 12 * (870 * 80 + 180 * 35)
-                        # batch_size * (max_out * dim_out + max_in * dim_in)
-                        # resuling in 11 ~ 66 samples (avg 15 samples) in batch (809 batches per epochs) for ljspeech.yaml
-
-  # training related
-  transformer_init: 'pytorch' # choices:["pytorch", "xavier_uniform", "xavier_normal", "kaiming_uniform", "kaiming_normal"]
-  transformer_warmup_steps: 4000
-  transformer_lr: 1.0
-  initial_encoder_alpha: 1.0
-  initial_decoder_alpha: 1.0
-  eprenet_dropout_rate: 0.0
-  dprenet_dropout_rate: 0.5
-  postnet_dropout_rate: 0.5
-  transformer_enc_dropout_rate: 0.1
-  transformer_enc_positional_dropout_rate: 0.1
-  transformer_enc_attn_dropout_rate: 0.1
-  transformer_dec_dropout_rate: 0.1
-  transformer_dec_positional_dropout_rate: 0.1
-  transformer_dec_attn_dropout_rate: 0.1
-  transformer_enc_dec_attn_dropout_rate: 0.1
-  use_guided_attn_loss: True
-  num_heads_applied_guided_attn: 2
-  num_layers_applied_guided_attn: 2
-  modules_applied_guided_attn: ["encoder_decoder"]
-  guided_attn_loss_sigma: 0.4
-  guided_attn_loss_lambda: 1.0
-
-  ### FastSpeech
-  duration_predictor_layers : 2
-  duration_predictor_chans : 256
-  duration_predictor_kernel_size : 3
-  transfer_encoder_from_teacher : True
-  duration_predictor_dropout_rate : 0.5
-  teacher_model : ""
-  transferred_encoder_module : "all" # choices:["all", "embed"]
-
-  attn_plot : False
-
+  - optispeech: generator/default
 
 train:
   # optimization related
@@ -94,7 +21,7 @@ train:
   dumpdir: '' # directory to dump full features
   verbose: 0    # verbose option (if set > 0, get more log)
   N: 0          # number of minibatches to be used (mainly for debugging). "0" uses all minibatches.
-  seed: 1       # random seed number
+  seed: 4577       # random seed number
   resume: ""    # the snapshot path to resume (if set empty, no effect)
   use_phonemes: True
   batch_size : 16

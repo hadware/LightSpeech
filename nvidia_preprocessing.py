@@ -4,10 +4,10 @@ import tqdm
 import torch
 import argparse
 import numpy as np
-from utils.stft import TacotronSTFT
-from utils.util import read_wav_np
-from dataset.audio_processing import pitch
-from utils.hparams import HParam
+from lightspeech.utils import TacotronSTFT
+from lightspeech.utils.util import read_wav_np
+from lightspeech.dataset.audio_processing import pitch
+from lightspeech.utils.hparams import HParam
 
 
 def main(args, hp):

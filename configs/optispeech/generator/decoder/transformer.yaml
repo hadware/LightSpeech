@@ -1,0 +1,15 @@
+_target_: lightspeech.optispeech.modules.Transformer
+_partial_: true
+attention_heads: 2
+linear_units: 1024
+num_blocks: 4
+dropout_rate: 0.2
+positional_dropout_rate: 0.2
+attention_dropout_rate: 0.2
+normalize_before: true
+concat_after: false
+positionwise_layer_type: conv1d
+positionwise_conv_kernel_size: 1
+use_scaled_pos_enc: true
+init_alpha: 1.0
+init_type: xavier_uniform

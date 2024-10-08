@@ -1,74 +1,74 @@
-import lightspeech
-from tensorboardX import SummaryWriter
-import torch
-from dataset import dataloader as loader
 import logging
 import math
 import os
-import sys
-import numpy as np
-import configargparse
 import random
-import tqdm
+import sys
 import time
-from utils.plot import generate_audio, plot_spectrogram_to_numpy
-from core.optimizer import get_std_opt
-from utils.util import read_wav_np
-from dataset.texts import valid_symbols
-from utils.util import get_commit_hash
-from utils.hparams import HParam
+from pathlib import Path
+
+import configargparse
+import hydra
+import numpy as np
+import torch
+import tqdm
+from tensorboardX import SummaryWriter
+
+from lightspeech.core.optimizer import get_std_opt
+from lightspeech.dataset import dataloader as loader
+from lightspeech.dataset import valid_symbols
+from lightspeech.optispeech import OptiSpeechGenerator
+from lightspeech.utils.hparams import HParam
+from lightspeech.utils.plot import generate_audio, plot_spectrogram_to_numpy
+from lightspeech.utils.util import read_wav_np
 
 BATCH_COUNT_CHOICES = ["auto", "seq", "bin", "frame"]
 BATCH_SORT_KEY_CHOICES = ["input", "output", "shuffle"]
 
+def load_model(config_path: str, config_name: str) -> OptiSpeechGenerator:
+    # Charger la configuration
+    with hydra.initialize_config_dir(config_dir=config_path, version_base=None):
+        cfg = hydra.compose(config_name=config_name)
+        # Instancier le modèle
+        model = instantiate(cfg)
+        return model
+
 
 def train(args, hp, hp_str, logger, vocoder):
-    os.makedirs(os.path.join(hp.train.chkpt_dir, args.name), exist_ok=True)
-    os.makedirs(os.path.join(args.outdir, args.name), exist_ok=True)
-    os.makedirs(os.path.join(args.outdir, args.name, 'assets'), exist_ok=True)
+    chckpt_dir : Path = hp.train.chkpt_dir
+    outdir: Path = hp.train.outdir
+    assets_dir: Path = outdir / 'assets'
+    data_dir: Path = hp.data.data_dir
+    ckckpt_path : Path = args.checkpoint_path
+    log_dir : Path = hp.train.log_dir
+
+    # makedir all previous folders
+    chckpt_dir.mkdir(parents=True, exist_ok=True)
+    outdir.mkdir(parents=True, exist_ok=True)
+    assets_dir.mkdir(parents=True, exist_ok=True)
+
     device = torch.device("cuda" if hp.train.ngpu > 0 else "cpu")
 
-    dataloader = loader.get_tts_dataset(hp.data.data_dir, hp.train.batch_size, hp)
-    validloader = loader.get_tts_dataset(hp.data.data_dir, 5, hp, True)
+    dataloader = loader.get_tts_dataset(data_dir, hp.train.batch_size, hp)
+    validloader = loader.get_tts_dataset(data_dir, 5, hp, True)
 
     idim = len(valid_symbols)
     odim = hp.audio.num_mels
-    model = lightspeech.FeedForwardTransformer(idim, odim, hp)
+    model_partial = load_model(hp.model_config_folder, hp.config_name)
+    model = model_partial(odim)
     # set torch device
     model = model.to(device)
     print("Model is loaded ...")
-    githash = get_commit_hash()
-    if args.checkpoint_path is not None:
-        if os.path.exists(args.checkpoint_path):
-            logger.info("Resuming from checkpoint: %s" % args.checkpoint_path)
-            checkpoint = torch.load(args.checkpoint_path)
-            model.load_state_dict(checkpoint['model'])
-            optimizer = get_std_opt(model, hp.model.adim, hp.model.transformer_warmup_steps, model.hp.transformer_lr)
-            optimizer.load_state_dict(checkpoint['optim'])
-            global_step = checkpoint['step']
-
-            if hp_str != checkpoint['hp_str']:
-                logger.warning("New hparams is different from checkpoint. Will use new.")
-
-            if githash != checkpoint['githash']:
-                logger.warning("Code might be different: git hash is different.")
-                logger.warning("%s -> %s" % (checkpoint['githash'], githash))
-
-        else:
-            print("Checkpoint does not exixts")
-            global_step = 0
-            return None
-    else:
-        print("New Training")
-        global_step = 0
-        optimizer = get_std_opt(model, hp.model.adim, hp.model.transformer_warmup_steps, hp.model.transformer_lr)
+    print("New Training")
+    global_step = 0
+    optimizer = get_std_opt(model, hp.model.adim, hp.model.transformer_warmup_steps, hp.model.transformer_lr)
 
     print("Batch Size :", hp.train.batch_size)
 
     num_params(model)
 
-    os.makedirs(os.path.join(hp.train.log_dir, args.name), exist_ok=True)
-    writer = SummaryWriter(os.path.join(hp.train.log_dir, args.name))
+    log_path = log_dir / args.name
+    log_path.mkdir(parents=True, exist_ok=True)
+    writer = SummaryWriter(str(log_path))
     model.train()
     forward_count = 0
     # print(model)
@@ -200,109 +200,6 @@ def num_params(model, print_out=True):
         print('Trainable Parameters: %.3fM' % parameters)
 
 
-def create_gta(args, hp, hp_str, logger):
-    os.makedirs(os.path.join(hp.data.data_dir, 'gta'), exist_ok=True)
-    device = torch.device("cuda" if hp.train.ngpu > 0 else "cpu")
-
-    dataloader = loader.get_tts_dataset(hp.data.data_dir, 1)
-    validloader = loader.get_tts_dataset(hp.data.data_dir, 1, True)
-    global_step = 0
-    idim = len(valid_symbols)
-    odim = hp.audio.num_mels
-    model = lightspeech.FeedForwardTransformer(idim, odim, hp)
-    # set torch device
-    if os.path.exists(args.checkpoint_path):
-        print('\nSynthesis GTA Session...\n')
-        checkpoint = torch.load(args.checkpoint_path)
-        model.load_state_dict(checkpoint['model'])
-    else:
-        print("Checkpoint not exixts")
-        return None
-    model.eval()
-    model = model.to(device)
-    print("Model is loaded ...")
-    print("Batch Size :", hp.train.batch_size)
-    num_params(model)
-    onlyValidation = False
-    if not onlyValidation:
-        pbar = tqdm.tqdm(dataloader, desc='Loading train data')
-        for data in pbar:
-            # start_b = time.time()
-            global_step += 1
-            x, input_length, y, _, out_length, ids = data
-            with torch.no_grad():
-                gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
-                # gta = model._forward(x.cuda(), input_length.cuda(), is_inference=False)
-            gta = gta.cpu().numpy()
-
-            for j in range(len(ids)):
-                mel = gta[j]
-                mel = mel.T
-                mel = mel[:, :out_length[j]]
-                mel = (mel + 4) / 8
-                id = ids[j]
-                np.save('{}/{}.npy'.format(os.path.join(hp.data.data_dir, 'gta'), id), mel, allow_pickle=False)
-
-    pbar = tqdm.tqdm(validloader, desc='Loading Valid data')
-    for data in pbar:
-        # start_b = time.time()
-        global_step += 1
-        x, input_length, y, _, out_length, ids = data
-        with torch.no_grad():
-            gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
-            # gta = model._forward(x.cuda(), input_length.cuda(), is_inference=True)
-        gta = gta.cpu().numpy()
-
-        for j in range(len(ids)):
-            print("Actual mel specs : {} = {}".format(ids[j], y[j].shape))
-            print("Out length:", out_length[j])
-            print("GTA size: {} = {}".format(ids[j], gta[j].shape))
-            mel = gta[j]
-            mel = mel.T
-            mel = mel[:, :out_length[j]]
-            mel = (mel + 4) / 8
-            print("Mel size: {} = {}".format(ids[j], mel.shape))
-            id = ids[j]
-            np.save('{}/{}.npy'.format(os.path.join(hp.data.data_dir, 'gta'), id), mel, allow_pickle=False)
-
-
-# define function for plot prob and att_ws
-def _plot_and_save(array, figname, figsize=(6, 4), dpi=150):
-    import matplotlib.pyplot as plt
-    shape = array.shape
-    if len(shape) == 1:
-        # for eos probability
-        fig = plt.figure(figsize=figsize, dpi=dpi)
-        plt.plot(array)
-        plt.xlabel("Frame")
-        plt.ylabel("Probability")
-        plt.ylim([0, 1])
-    elif len(shape) == 2:
-        # for tacotron 2 attention weights, whose shape is (out_length, in_length)
-        fig = plt.figure(figsize=figsize, dpi=dpi)
-        plt.imshow(array, aspect="auto")
-        plt.xlabel("Input")
-        plt.ylabel("Output")
-    elif len(shape) == 4:
-        # for transformer attention weights, whose shape is (#leyers, #heads, out_length, in_length)
-        fig = plt.figure(figsize=(figsize[0] * shape[0], figsize[1] * shape[1]), dpi=dpi)
-        for idx1, xs in enumerate(array):
-            for idx2, x in enumerate(xs, 1):
-                plt.subplot(shape[0], shape[1], idx1 * shape[1] + idx2)
-                plt.imshow(x.cpu().detach().numpy(), aspect="auto")
-                plt.xlabel("Input")
-                plt.ylabel("Output")
-    else:
-        raise NotImplementedError("Support only from 1D to 4D array.")
-    plt.tight_layout()
-    if not os.path.exists(os.path.dirname(figname)):
-        # NOTE: exist_ok = True is needed for parallel process decoding
-        os.makedirs(os.path.dirname(figname), exist_ok=True)
-    plt.savefig(figname)
-    plt.close()
-    return fig
-
-
 # NOTE: you need this func to generate our sphinx doc
 def get_parser():
     """Get parser of training arguments."""
@@ -311,13 +208,13 @@ def get_parser():
         config_file_parser_class=configargparse.YAMLConfigFileParser,
         formatter_class=configargparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('-c', '--config', type=str, required=True,
+    parser.add_argument('-c', '--config', type=Path, required=True,
                         help="yaml file for configuration")
-    parser.add_argument('-p', '--checkpoint_path', type=str, default=None,
+    parser.add_argument('-p', '--checkpoint_path', type=Path, default=None,
                         help="path of checkpoint pt file to resume training")
     parser.add_argument('-n', '--name', type=str, required=True,
                         help="name of the model for logging, saving checkpoint")
-    parser.add_argument('--outdir', type=str, required=True,
+    parser.add_argument('--outdir', type=Path, required=True,
                         help='Output directory')
 
     return parser
@@ -361,10 +258,7 @@ def main(cmd_args):
 
     vocoder = torch.hub.load('seungwonpark/melgan', 'melgan')  # load the vocoder for validation
 
-    if hp.train.GTA:
-        create_gta(args, hp, hp_str, logger)
-    else:
-        train(args, hp, hp_str, logger, vocoder)
+    train(args, hp, hp_str, logger, vocoder)
 
 
 if __name__ == "__main__":

@@ -5,17 +5,17 @@ import logging
 import os
 import torch
 import sys
-from utils.util import set_deterministic_pytorch
+from lightspeech.utils.util import set_deterministic_pytorch
 from lightspeech import FeedForwardTransformer
-from dataset.texts import  phonemes_to_sequence
+from lightspeech.dataset import  phonemes_to_sequence
 import time
-from dataset.audio_processing import griffin_lim
+from lightspeech.dataset.audio_processing import griffin_lim
 import numpy as np
-from utils.stft import STFT
+from lightspeech.utils import STFT
 from scipy.io.wavfile import write
-from dataset.texts import valid_symbols
-from utils.hparams import HParam, load_hparam_str
-from dataset.texts.cleaners import english_cleaners, punctuation_removers
+from lightspeech.dataset import valid_symbols
+from lightspeech.utils.hparams import HParam, load_hparam_str
+from lightspeech.dataset.texts.cleaners import english_cleaners, punctuation_removers
 import matplotlib.pyplot as plt
 from g2p_en import G2p
 

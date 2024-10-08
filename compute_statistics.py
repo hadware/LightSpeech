@@ -1,9 +1,9 @@
 import numpy as np
 import os
-from utils.util import get_files
+from lightspeech.utils.util import get_files
 from tqdm import tqdm
-from utils.util import remove_outlier
-from utils.hparams import HParam
+from lightspeech.utils.util import remove_outlier
+from lightspeech.utils.hparams import HParam
 
 if __name__ == '__main__':
 

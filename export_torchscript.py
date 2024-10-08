@@ -1,6 +1,6 @@
 from lightspeech import FeedForwardTransformer
-from utils.hparams import HParam
-from dataset.texts import valid_symbols
+from lightspeech.utils.hparams import HParam
+from lightspeech.dataset import valid_symbols
 import configargparse
 import torch
 import sys
