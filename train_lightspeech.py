@@ -15,31 +15,32 @@ from tensorboardX import SummaryWriter
 
 from lightspeech.core.optimizer import get_std_opt
 from lightspeech.dataset import dataloader as loader
-from lightspeech.dataset import valid_symbols
 from lightspeech.optispeech import OptiSpeechGenerator
 from lightspeech.utils.hparams import HParam
 from lightspeech.utils.plot import generate_audio, plot_spectrogram_to_numpy
-from lightspeech.utils.util import read_wav_np
+from lightspeech.utils.util import read_wav_np, get_commit_hash
 
 BATCH_COUNT_CHOICES = ["auto", "seq", "bin", "frame"]
 BATCH_SORT_KEY_CHOICES = ["input", "output", "shuffle"]
 
+
 def load_model(config_path: str, config_name: str) -> OptiSpeechGenerator:
     # Charger la configuration
-    with hydra.initialize_config_dir(config_dir=config_path, version_base=None):
+    config_path = Path(config_path).absolute()
+    with hydra.initialize_config_dir(config_dir=str(config_path), version_base=None):
         cfg = hydra.compose(config_name=config_name)
         # Instancier le modèle
-        model = instantiate(cfg)
+        model = hydra.utils.instantiate(cfg)
         return model
 
 
 def train(args, hp, hp_str, logger, vocoder):
-    chckpt_dir : Path = hp.train.chkpt_dir
-    outdir: Path = hp.train.outdir
+    chckpt_dir: Path = Path(hp.train.chkpt_dir)
+    outdir: Path = args.outdir
     assets_dir: Path = outdir / 'assets'
     data_dir: Path = hp.data.data_dir
-    ckckpt_path : Path = args.checkpoint_path
-    log_dir : Path = hp.train.log_dir
+    ckckpt_path: Path = args.checkpoint_path
+    log_dir: Path = Path(hp.train.log_dir)
 
     # makedir all previous folders
     chckpt_dir.mkdir(parents=True, exist_ok=True)
@@ -51,16 +52,15 @@ def train(args, hp, hp_str, logger, vocoder):
     dataloader = loader.get_tts_dataset(data_dir, hp.train.batch_size, hp)
     validloader = loader.get_tts_dataset(data_dir, 5, hp, True)
 
-    idim = len(valid_symbols)
-    odim = hp.audio.num_mels
-    model_partial = load_model(hp.model_config_folder, hp.config_name)
-    model = model_partial(odim)
+    out_dim = hp.audio.num_mels
+    model_partial = load_model(hp.model.config_folder, hp.model.config_name)
+    model: OptiSpeechGenerator = model_partial(out_dim)
     # set torch device
     model = model.to(device)
     print("Model is loaded ...")
     print("New Training")
     global_step = 0
-    optimizer = get_std_opt(model, hp.model.adim, hp.model.transformer_warmup_steps, hp.model.transformer_lr)
+    optimizer = get_std_opt(model, model.hidden_dim, hp.model.transformer_warmup_steps, hp.model.transformer_lr)
 
     print("Batch Size :", hp.train.batch_size)
 
@@ -71,7 +71,8 @@ def train(args, hp, hp_str, logger, vocoder):
     writer = SummaryWriter(str(log_path))
     model.train()
     forward_count = 0
-    # print(model)
+    githash = get_commit_hash()
+
     for epoch in range(hp.train.epochs):
         start = time.time()
         running_loss = 0
@@ -88,10 +89,10 @@ def train(args, hp, hp_str, logger, vocoder):
             loss, report_dict = model(x.cuda(),
                                       input_length.cuda(),
                                       y.cuda(),
-                                      out_length.cuda(), # output audio length
-                                      dur.cuda(), # phonemes durations
-                                      e.cuda(), # energy
-                                      p.cuda()) # pitch
+                                      out_length.cuda(),  # output audio length
+                                      dur.cuda(),  # phonemes durations
+                                      e.cuda(),  # energy
+                                      p.cuda())  # pitch
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
 
@@ -118,14 +119,13 @@ def train(args, hp, hp_str, logger, vocoder):
                 pbar.set_description(
                     "Average Loss %.04f Loss %.04f | step %d" % (running_loss / j, loss.item(), step))
 
-                for r in report_dict:
-                    for k, v in r.items():
-                        if k is not None and v is not None:
-                            if 'cupy' in str(type(v)):
-                                v = v.get()
-                            if 'cupy' in str(type(k)):
-                                k = k.get()
-                            writer.add_scalar("main/{}".format(k), v, step)
+                for k, v in report_dict.items():
+                    if k is not None and v is not None:
+                        if 'cupy' in str(type(v)):
+                            v = v.get()
+                        if 'cupy' in str(type(k)):
+                            k = k.get()
+                        writer.add_scalar("main/{}".format(k), v, step)
 
             if step % hp.train.validation_step == 0:
 
@@ -137,17 +137,16 @@ def train(args, hp, hp_str, logger, vocoder):
                                                     dur_.cuda(), e_.cuda(),
                                                     p_.cuda())
 
-                        mels_ = model.inference(x_[-1].cuda())  # [T, num_mel]
-
+                        synth_results = model.synthesise_one(x_[-1].cuda())  # [T, num_mel]
+                        mels_ = synth_results['mels'][0]
                     model.train()
-                    for r in report_dict_:
-                        for k, v in r.items():
-                            if k is not None and v is not None:
-                                if 'cupy' in str(type(v)):
-                                    v = v.get()
-                                if 'cupy' in str(type(k)):
-                                    k = k.get()
-                                writer.add_scalar("validation/{}".format(k), v, step)
+                    for k, v in report_dict_.items():
+                        if k is not None and v is not None:
+                            if 'cupy' in str(type(v)):
+                                v = v.get()
+                            if 'cupy' in str(type(k)):
+                                k = k.get()
+                            writer.add_scalar("validation/{}".format(k), v, step)
                     break
 
                 mels_ = mels_.T  # Out: [num_mels, T]
@@ -158,7 +157,6 @@ def train(args, hp, hp_str, logger, vocoder):
                                  plot_spectrogram_to_numpy(mels_.data.cpu().numpy()),
                                  step, dataformats='HWC')
 
-                # print(mels.unsqueeze(0).shape)
 
                 audio = generate_audio(mels_.unsqueeze(0),
                                        vocoder)  # selecting the last data point to match mel generated above
@@ -179,8 +177,8 @@ def train(args, hp, hp_str, logger, vocoder):
 
                 ##
             if step % hp.train.save_interval == 0:
-                save_path = os.path.join(hp.train.chkpt_dir, args.name,
-                                         '{}_fastspeech_{}_{}k_steps.pyt'.format(args.name, githash, step // 1000))
+                save_path = chckpt_dir / args.name / '{}_fastspeech_{}_{}k_steps.pyt'.format(args.name, githash, step // 1000)
+                save_path.parent.mkdir(parents=True, exist_ok=True)
 
                 torch.save({
                     'model': model.state_dict(),

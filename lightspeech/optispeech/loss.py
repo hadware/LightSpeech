@@ -159,7 +159,7 @@ class MelLoss(torch.nn.Module):
         self.use_masking = use_masking
 
         # define criterions
-        reduction = "none" if self.use_weighted_masking else "mean"
+        reduction = "mean"
         if regression_loss_type == "mse":
             self.regression_criterion = torch.nn.MSELoss(reduction=reduction)
         elif regression_loss_type == "l1":
@@ -187,8 +187,9 @@ class MelLoss(torch.nn.Module):
         # apply mask to remove padded part
         if self.use_masking:
             with torch.no_grad():
-                mel_mask = make_non_pad_mask(olens).to(mel.device)
+                mel_mask = make_non_pad_mask(olens).to(mel.device).transpose(1,2)
             mel_out = mel_out.masked_select(mel_mask)
+            mel = mel.masked_select(mel_mask)
 
         # calculate loss
         mel_loss = self.regression_criterion(mel_out, mel)

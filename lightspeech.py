@@ -290,7 +290,7 @@ class FeedForwardTransformer(torch.nn.Module):
         energy_loss = self.energy_criterion(e_outs, es)
         pitch_loss = self.pitch_criterion(p_outs, ps)
 
-        loss = l1_loss + duration_loss + energy_loss + pitch_loss
+        loss: torch.Tensor = l1_loss + duration_loss + energy_loss + pitch_loss
         report_keys = [
             {"l1_loss": l1_loss.item()},
             {"before_loss": before_loss.item()},

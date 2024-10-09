@@ -33,11 +33,10 @@ audio:
 
 
 model:
-  model_config_folder: "configs/optispeech/generator"
+  config_folder: "configs/optispeech/generator"
   config_name: default.yaml
   transformer_warmup_steps: 4000
   transformer_lr: 1.0
-  adim: 256
 
 train:
   # optimization related

@@ -8,8 +8,8 @@ defaults:
   - decoder: transformer
 
 _target_: lightspeech.optispeech.OptiSpeechGenerator
-__partial__: true
-dim: 256
+_partial_: true
+hidden_dim: 256
 n_feats: 80     # number of mel basis
 n_fft: 1024    # number of fft points
 hop_length: 256   # number of shift points

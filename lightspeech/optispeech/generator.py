@@ -8,9 +8,8 @@ from .alignments import (
     AlignmentModule,
     GaussianUpsampling,
     average_by_duration,
-    viterbi_decode,
 )
-from .loss import FastSpeech2Loss, ForwardSumLoss, MelLoss
+from .loss import FastSpeech2Loss, MelLoss
 from .modules import DurationPredictor, PitchPredictor, EnergyPredictor
 from .utils import sequence_mask
 
@@ -34,8 +33,8 @@ class InferenceOutput(TypedDict):
 class OptiSpeechGenerator(nn.Module):
     def __init__(
             self,
-            hidden_dim: int,
             out_dim: int,
+            hidden_dim: int,
             text_embedding: nn.Module,
             encoder: nn.Module,
             duration_predictor: DurationPredictor,
@@ -56,6 +55,7 @@ class OptiSpeechGenerator(nn.Module):
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.sample_rate = sample_rate
+        self.hidden_dim = hidden_dim
 
         self.text_embedding = text_embedding(dim=hidden_dim)
         self.encoder = encoder(dim=hidden_dim)
@@ -118,13 +118,13 @@ class OptiSpeechGenerator(nn.Module):
         x = self.encoder(x, input_padding_mask)
 
         # alignment
-        log_p_attn = self.alignment_module(
-            text=x,
-            feats=mel.transpose(1, 2),
-            text_lengths=x_lengths,
-            feats_lengths=mel_lengths,
-            x_masks=input_padding_mask,
-        )
+        # log_p_attn = self.alignment_module(
+        #     text=x,
+        #     feats=mel.transpose(1, 2),
+        #     text_lengths=x_lengths,
+        #     feats_lengths=mel_lengths,
+        #     x_masks=input_padding_mask,
+        # )
 
         # durations are estimated using a viterbi decoding, instead of through a forced-aligment
         # durations, bin_loss = viterbi_decode(log_p_attn, x_lengths, mel_lengths)
@@ -220,10 +220,6 @@ class OptiSpeechGenerator(nn.Module):
         # Encoder
         x = self.encoder(x, input_padding_mask)
 
-        # Set default speaker/language during inference when not specified
-        if (self.num_speakers > 1) and sids is None:
-            sids = torch.zeros(x.shape[0]).long().to(x.device)
-
         # duration predictor
         # NOTE: this could be substituted by the durations from espeak during inference
         durations = self.duration_predictor.infer(x, input_padding_mask, factor=d_factor)
@@ -247,12 +243,24 @@ class OptiSpeechGenerator(nn.Module):
 
         # Decoder
         mel = self.decoder(y, target_padding_mask)
+        mel = self.feat_out(mel)
         am_infer = (perf_counter() - am_t0) * 1000
 
         return {
-            "mel": mel,
+            "mels": mel.detach().cpu(),
             "durations": durations.detach().cpu(),
             "pitch": pitch.detach().cpu(),
             "energy": energy.detach().cpu(),
             "am_infer": am_infer,
         }
+
+    @torch.inference_mode()
+    def synthesise_one(self,
+                       x: torch.Tensor,
+                       d_factor: float = 1.0,
+                       p_factor: float = 1.0,
+                       e_factor: float = 1.0):
+
+        x = x.unsqueeze(0)
+        x_length = torch.tensor([torch.tensor([x.shape[0]], dtype=torch.long, device=x.device)])
+        return self.synthesise(x, x_length, d_factor, p_factor, e_factor)
