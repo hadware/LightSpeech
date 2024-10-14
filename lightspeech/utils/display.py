@@ -1,8 +1,11 @@
-import time
 import sys
-import matplotlib
-matplotlib.use('Agg')
+import time
 
+import matplotlib
+import numpy as np
+import torch.nn
+
+matplotlib.use('Agg')
 
 
 def progbar(i, n, size=16):
@@ -78,3 +81,9 @@ def time_since(started):
     else:
         return f'{m}m {s}s'
 
+
+def num_params(model: torch.nn.Module, print_out=True):
+    parameters = filter(lambda p: p.requires_grad, model.parameters())
+    parameters = sum([np.prod(p.size()) for p in parameters]) / 1_000_000
+    if print_out:
+        print(f'Trainable Parameters {model.__class__.__name__}: {parameters:.3f}M')

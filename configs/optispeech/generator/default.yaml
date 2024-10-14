@@ -16,7 +16,7 @@ hop_length: 256   # number of shift points
 sample_rate: 22050 # window length
 loss_coeffs:
   # lambda_align: 5.0
-  lambda_mel: 1
+  lambda_mel: 1.0
   lambda_duration: 1.0
   lambda_pitch: 1.0
   lambda_energy: 1.0

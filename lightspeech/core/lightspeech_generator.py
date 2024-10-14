@@ -11,13 +11,13 @@ from typing import Dict, Tuple, Sequence
 import torch
 
 from lightspeech.core.alignments import GaussianUpsampling
-from lightspeech.core.duration_modeling import DurationPredictor
-from lightspeech.core.duration_modeling import DurationPredictorLoss
-from lightspeech.core.duration_modeling import LengthRegulator
+from lightspeech.core.duration_modeling.duration_predictor import DurationPredictor
+from lightspeech.core.duration_modeling.duration_predictor import DurationPredictorLoss
+from lightspeech.core.duration_modeling.length_regulator import LengthRegulator
 from lightspeech.core.embedding import PositionalEncoding, ScaledSinusoidalEmbedding
 from lightspeech.core.encoder import Encoder
-from lightspeech.core import Postnet
-from lightspeech.core import initialize
+from lightspeech.core.modules import Postnet
+from lightspeech.core.modules import initialize
 from lightspeech.core.variance_predictor import EnergyPredictor, EnergyPredictorLoss
 from lightspeech.core.variance_predictor import PitchPredictor, PitchPredictorLoss
 from lightspeech.utils.util import make_non_pad_mask, sequence_mask
@@ -198,6 +198,7 @@ class FeedForwardTransformer(torch.nn.Module):
             one_hot_pitch = self.pitch_predictor.inference(hs)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
+                # Shapes for botch: (B, Mel_Max, Hidden_dim)
                 one_hot_energy = self.energy_predictor.to_one_hot(es)  # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 one_hot_pitch = self.pitch_predictor.to_one_hot(ps)  # (B, Lmax, adim)   torch.Size([32, 868, 256])
 

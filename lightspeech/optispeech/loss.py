@@ -86,6 +86,7 @@ class FastSpeech2Loss(torch.nn.Module):
         ps: torch.Tensor,
         es: torch.Tensor,
         ilens: torch.Tensor,
+        olens: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Calculate forward propagation.
 
@@ -97,6 +98,7 @@ class FastSpeech2Loss(torch.nn.Module):
             ps (Tensor): Batch of target token-averaged pitch (B, T_text, 1).
             es (Tensor): Batch of target token-averaged energy (B, T_text, 1).
             ilens (LongTensor): Batch of the lengths of each input (B,).
+            ilens (LongTensor): Batch of the lengths of each output (B,).
 
         Returns:
             Tensor: Duration predictor loss value.

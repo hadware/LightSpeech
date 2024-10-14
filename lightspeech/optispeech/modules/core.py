@@ -159,10 +159,11 @@ class PitchPredictor(torch.nn.Module):
             x: input + pitch embedding
         """
         preds = self.predictor(x, padding_mask)
-        # Teacher forceing during training
+        # Teacher forcing during training
         emb = self.embed(target.unsqueeze(1))
         x = x + emb.transpose(1, 2)
-        x = x * (1 - padding_mask.float())[..., None]
+        # x = x * (1 - padding_mask.float()).unsqueeze(-1)
+        x = x.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         return x, preds
 
     @torch.inference_mode()

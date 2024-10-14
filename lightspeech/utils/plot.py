@@ -1,6 +1,8 @@
 import matplotlib
 import numpy as np
 import torch
+from tensorboardX import SummaryWriter
+
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
@@ -95,6 +97,25 @@ def plot_spectrogram_to_numpy(spectrogram):
     data = save_figure_to_numpy(fig, True)
     plt.close()
     return data
+
+def plot_time_series_to_numpy(time_series: np.ndarray) -> np.ndarray:
+    fig, ax = plt.subplots(figsize=(12, 3))
+    ax.plot(time_series)
+    plt.xlabel("Time")
+    plt.ylabel("Value")
+    plt.tight_layout()
+    fig.canvas.draw()
+    data = save_figure_to_numpy(fig, True)
+    plt.close()
+    return data
+
+def log_time_series(name: str, predicted: np.ndarray, target: np.ndarray, writer: SummaryWriter):
+    writer.add_image(f'{name}_target',
+                     plot_time_series_to_numpy(target),
+                     step, dataformats='HWC')
+    writer.add_image(f'{name}_prediction',
+                     plot_time_series_to_numpy(predicted),
+                     step, dataformats='HWC')
 
 
 def generate_audio(mel, vocoder):
