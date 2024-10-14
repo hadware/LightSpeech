@@ -41,7 +41,6 @@ class FeedForwardTransformer(torch.nn.Module):
             odim (int): Dimension of the outputs.
         """
         # initialize base classes
-        assert check_argument_types()
         torch.nn.Module.__init__(self)
 
         # fill missing arguments
