@@ -72,7 +72,7 @@ model:
                         # resuling in 11 ~ 66 samples (avg 15 samples) in batch (809 batches per epochs) for ljspeech
 
   # training related
-  transformer_init: 'pytorch' # choices:["pytorch", "xavier_uniform", "xavier_normal", "kaiming_uniform", "kaiming_normal"]
+  transformer_init: 'xavier_normal' # choices:["pytorch", "xavier_uniform", "xavier_normal", "kaiming_uniform", "kaiming_normal"]
   transformer_warmup_steps: 4000
   transformer_lr: 1.0
   initial_encoder_alpha: 1.0
@@ -133,6 +133,6 @@ train:
   chkpt_dir : './checkpoints'
   log_dir : './logs'
   summary_interval : 200
-  validation_step : 100
+  validation_step : 200
   tts_max_mel_len : 870              # if you have a couple of extremely long spectrograms you might want to use this
   tts_bin_lengths : True              # bins the spectrogram lengths before sampling in data loader - speeds up training

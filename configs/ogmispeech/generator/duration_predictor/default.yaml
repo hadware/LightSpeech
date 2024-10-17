@@ -1,0 +1,6 @@
+_target_: lightspeech.optispeech.duration_modeling.DurationPredictor
+_partial_: true
+n_layers: 2
+n_chans: 256
+kernel_size: 3
+dropout_rate: 0.5

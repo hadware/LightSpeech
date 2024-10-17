@@ -159,16 +159,16 @@ def train(args, hp, hp_str, logger, vocoder):
                                  plot_spectrogram_to_numpy(mels_.data.cpu().numpy()),
                                  step, dataformats='HWC')
                 writer.add_image('before_decoding',
-                                 plot_spectrogram_to_numpy(debug_data["before_decoding"][-1].numpy().T[:, :input_length[-1]]),
+                                 plot_spectrogram_to_numpy(debug_data["before_decoding"][-1].numpy().T[:, :out_length_[-1]]),
                                  step, dataformats='HWC')
                 writer.add_image('pitch_prediction_inference',
                                  plot_time_series_to_numpy(synth_results["pitch"][0].numpy()),
                                  step, dataformats='HWC')
                 writer.add_image('pitch_prediction_forward',
-                                 plot_time_series_to_numpy(preds_dict_["pitch"][-1].numpy()[:out_length_[-1]]),
+                                 plot_time_series_to_numpy(preds_dict_["pitch"][-1].numpy()[:input_length_[-1]]),
                                  step, dataformats='HWC')
                 writer.add_image('pitch_target_avg',
-                                 plot_time_series_to_numpy(debug_data["avg_pitch"][-1].numpy()[:out_length_[-1]]),
+                                 plot_time_series_to_numpy(debug_data["avg_pitch"][-1].numpy()[:input_length_[-1]]),
                                  step, dataformats='HWC')
                 writer.add_image('pitch_target',
                                  plot_time_series_to_numpy(p_[-1].numpy()[:out_length_[-1]]),

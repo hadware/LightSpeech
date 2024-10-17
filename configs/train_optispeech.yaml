@@ -65,6 +65,6 @@ train:
   chkpt_dir : './checkpoints'
   log_dir : './logs'
   summary_interval : 200
-  validation_step : 20
+  validation_step : 500
   tts_max_mel_len : 870              # if you have a couple of extremely long spectrograms you might want to use this
   tts_bin_lengths : True              # bins the spectrogram lengths before sampling in data loader - speeds up training

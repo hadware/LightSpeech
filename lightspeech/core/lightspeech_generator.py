@@ -306,10 +306,7 @@ class FeedForwardTransformer(torch.nn.Module):
 
         return loss, report_keys
 
-    def inference(self, x: torch.Tensor,
-                  d_factor: float = 1.0,
-                  e_factor: float = 1.0,
-                  p_factor: float = 1.0, ) -> torch.Tensor:
+    def inference(self, x: torch.Tensor) -> torch.Tensor:
         """Generate the sequence of features given the sequences of characters.
         Args:
             x (Tensor): Input sequence of characters (T,).

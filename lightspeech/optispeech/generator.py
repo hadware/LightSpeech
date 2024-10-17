@@ -76,7 +76,8 @@ class OptiSpeechGenerator(nn.Module):
         # self.forwardsum_loss = ForwardSumLoss()
         self.mel_criterion = MelLoss(regression_loss_type="l1")
 
-    def forward(self, x: torch.Tensor,
+    def forward(self,
+                x: torch.Tensor,
                 x_lengths: torch.Tensor,
                 mel: torch.Tensor,
                 mel_lengths: torch.Tensor,
@@ -114,7 +115,7 @@ class OptiSpeechGenerator(nn.Module):
         mel_mask = torch.unsqueeze(sequence_mask(mel_lengths, mel_max_length), 1).type_as(x)
 
         input_padding_mask = ~x_mask.squeeze(1).bool().to(x.device)
-        target_padding_mask = ~mel_mask.squeeze(1).bool().to(x.device)
+        target_psadding_mask = ~mel_mask.squeeze(1).bool().to(x.device)
 
         # text embedding
         x, __ = self.text_embedding(x)
@@ -141,8 +142,8 @@ class OptiSpeechGenerator(nn.Module):
         # Converting pitches and energies to (B, T_max)
         pitches = average_by_duration(gt_durations, pitches.unsqueeze(-1), x_lengths, mel_lengths)
         energies = average_by_duration(gt_durations, energies.unsqueeze(-1), x_lengths, mel_lengths)
-
-        # variance predictors
+        #
+        # # variance predictors
         x, pitch_hat = self.pitch_predictor(x, input_padding_mask, pitches)
         x, energy_hat = self.energy_predictor(x, input_padding_mask, energies)
 
@@ -159,6 +160,7 @@ class OptiSpeechGenerator(nn.Module):
         )
 
         x_before_decoding = x.detach()
+
         # Decoder
         mel_hat = self.decoder(x, target_padding_mask)
         mel_hat = self.feat_out(mel_hat)

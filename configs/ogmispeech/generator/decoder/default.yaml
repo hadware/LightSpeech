@@ -1,0 +1,16 @@
+_target_: lightspeech.ogmispeech.encoder.LightSpeechTransformerDecoder
+_partial_: True
+attention_heads: 2
+linear_units: 1024
+num_blocks: 4
+input_layer:
+  _target_ : torch.nn.Embedding
+  _partial_ : true
+  padding_idx: 0
+dropout_rate: 0.2
+positional_dropout_rate: 0.2
+attention_dropout_rate: 0.2
+use_scaled_positional_encoding: true
+normalize_before : false
+concat_after: false
+positionwise_conv_kernel_sizes: [17, 21, 9, 13]
